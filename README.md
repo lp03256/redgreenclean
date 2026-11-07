@@ -62,6 +62,27 @@ Start with `/rgc`. It will ask you one question and route from there.
 The project is Red Green Clean; the commands are `rgc` because you will type
 them a hundred times a week.
 
+## Pro
+
+The free core above is complete and standalone. Pro adds the parts that need
+tooling rather than advice:
+
+| | |
+|---|---|
+| `/rgc-weigh` | Grade the change first, so a typo fix does not get the full ceremony |
+| `/rgc-net` | Build characterisation tests around code that has none |
+| `/rgc-audit` | Record what the agent did, in order, as it happens |
+| `rgc-drift` | Read any repo's git history and report where discipline slipped |
+
+`rgc-drift` works on repos that never used this tool. Point it at something you
+already have:
+
+```
+rgc-drift --since origin/main
+```
+
+See `pro/README.md`. Pro is licensed separately; it is not MIT.
+
 ## What Red Green Clean will not do
 
 - It will not run your tests for you. It tells the agent when to run them; your

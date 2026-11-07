@@ -22,6 +22,17 @@ Ask yourself first. Ask the user only if you genuinely cannot tell.
 If you are unsure which it is, it is a behaviour change. Guessing "structural"
 when it is not is how untested behaviour gets shipped.
 
+## If Pro skills are installed
+
+These are optional. Use them when they are available; carry on without them
+when they are not.
+
+- `rgc-weigh` — grade the change first, so a typo fix does not get the full
+  ceremony and a payment change does not get skipped
+- `rgc-net` — the code you need to change has no tests
+- `rgc-audit` — record the steps as you take them
+- `rgc-drift` — find out what the repo's history looks like before you add to it
+
 ## The rule that does not bend
 
 A commit is structural **or** behavioural. Never both.
