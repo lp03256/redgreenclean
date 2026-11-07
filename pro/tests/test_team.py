@@ -105,7 +105,7 @@ class Correlation(unittest.TestCase):
           "def median(xs):\n    return sorted(xs)[len(xs) // 2]\n")
         g("add", "-A"); g("commit", "-q", "-m", "fix divide by zero in average")
 
-        cls.rows = rgcdrift.analyse(None, None, 50, None)
+        cls.rows = rgcdrift.analyse(None, None, 50, None, repo=cls.dir)
         cls.result = rgcteam.correlate(cls.dir, cls.rows)
 
     @classmethod

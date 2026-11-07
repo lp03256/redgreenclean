@@ -1,111 +1,232 @@
 #!/usr/bin/env python3
-"""Aggregate audit records and git history into an adoption picture."""
+"""Team report: adoption, trend, defect correlation, coaching."""
 
 import argparse
 import glob
 import json
 import os
-import subprocess
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+from rgcdrift import PROBLEMS, VERDICTS, analyse, git  # noqa: E402
+import rgcteam  # noqa: E402
+
+RULE = "-" * 64
 
 
 def repo_root():
-    out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True, check=False)
-    if out.returncode != 0:
+    root = git("rev-parse", "--show-toplevel").strip()
+    if not root:
         sys.exit("not inside a git repository")
-    return out.stdout.strip()
+    return root
 
 
-def load_sessions(since):
+def load_sessions(root, since):
     rows = []
     for path in sorted(glob.glob(
-            os.path.join(repo_root(), ".rgc", "sessions", "*.jsonl"))):
+            os.path.join(root, ".rgc", "sessions", "*.jsonl"))):
         events = [json.loads(ln) for ln in open(path) if ln.strip()]
         start = next((e for e in events if e["event"] == "start"), None)
-        if not start:
-            continue
-        if since and start["at"][:10] < since:
+        if not start or (since and start["at"][:10] < since):
             continue
         kinds = [e["kind"] for e in events if e["event"] == "step"]
         rows.append({
             "author": start.get("author", "unknown"),
-            "task": start.get("task", ""),
             "date": start["at"][:10],
             "red": kinds.count("red"),
-            "green": kinds.count("green"),
-            "move": kinds.count("move"),
             "waive": kinds.count("waive"),
-            "closed": any(e["event"] == "close" for e in events),
+            "move": kinds.count("move"),
         })
     return rows
 
 
-def drift_summary(since):
-    tool = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                        "rgc-drift")
-    cmd = [sys.executable, tool, "--json"]
-    cmd += ["--since", since] if since else ["-n", "200"]
-    out = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if out.returncode not in (0, 1) or not out.stdout.strip():
-        return None
-    try:
-        return json.loads(out.stdout)
-    except json.JSONDecodeError:
-        return None
+def section(title):
+    print()
+    print(title)
+    print(RULE)
 
 
-def main():
-    ap = argparse.ArgumentParser(prog="rgc-report")
-    ap.add_argument("--since", metavar="YYYY-MM-DD")
-    ap.add_argument("--json", action="store_true")
-    args = ap.parse_args()
+def report_history(rows):
+    graded = [r for r in rows if r["verdict"] != "scaffold"]
+    problems = sum(1 for r in graded if r["verdict"] in PROBLEMS)
+    pct = (problems / len(graded) * 100) if graded else 0.0
+    counts = Counter(r["verdict"] for r in rows)
 
-    sessions = load_sessions(args.since)
-    drift = drift_summary(args.since)
+    section("HISTORY")
+    print(f"{len(graded)} commits with code changes "
+          f"({counts['scaffold']} scaffold, not graded)")
+    for v, (label, meaning) in VERDICTS.items():
+        if counts[v] and v != "scaffold":
+            print(f"  {label.strip():<11} {counts[v]:>5}   {meaning}")
+    print()
+    print(f"Problem rate: {pct:.0f}%  ({problems} of {len(graded)})")
+    return pct
 
-    by_author = defaultdict(lambda: defaultdict(int))
+
+def report_trend(rows):
+    periods = rgcteam.trend(rows)
+    if len(periods) < 2:
+        return
+    section("TREND")
+    width = 34
+    worst = max((p["pct"] for p in periods), default=1) or 1
+    for p in periods:
+        bar = "#" * max(1, round(p["pct"] / worst * width)) if p["pct"] else ""
+        print(f"  {p['period']}  {p['pct']:>5.0f}%  "
+              f"{p['problems']:>3}/{p['gradeable']:<4} {bar}")
+    first, last = periods[0], periods[-1]
+    direction = ("improving" if last["pct"] < first["pct"]
+                 else "worsening" if last["pct"] > first["pct"] else "flat")
+    print()
+    print(f"  {first['period']} to {last['period']}: {direction} "
+          f"({first['pct']:.0f}% -> {last['pct']:.0f}%)")
+    print("  Short periods swing a lot. Read the direction, not the step.")
+
+
+def report_correlation(root, rows):
+    c = rgcteam.correlate(root, rows)
+    section("DEFECT CORRELATION")
+    if not c["fix_commits"]:
+        print("  No commits in range look like fixes. Nothing to correlate.")
+        return
+    print(f"  {c['fix_commits']} fix commit(s); traced to "
+          f"{c['origins_traced']} origin commit(s) inside the range")
+    if not c["origins_traced"]:
+        print("  Origins fall outside the range. Widen it with --since.")
+        return
+    print()
+    for verdict, n in sorted(c["origin_verdicts"].items(),
+                             key=lambda kv: -kv[1]):
+        flag = "  <-- problem" if verdict in PROBLEMS else ""
+        print(f"    {VERDICTS[verdict][0].strip():<11} {n:>4}{flag}")
+    print()
+    print(f"  Commits later fixed:  {c['origin_problem_rate']:.0f}% "
+          "were problem commits")
+    print(f"  All commits:          {c['base_rate']:.0f}% are problem commits")
+    if c["lift"] is not None:
+        if c["lift"] >= 1.3:
+            print(f"  Lift: {c['lift']}x — commits that skipped discipline are "
+                  "over-represented\n        among the ones that later needed "
+                  "fixing.")
+        elif c["lift"] <= 0.8:
+            print(f"  Lift: {c['lift']}x — no link visible here. Say so "
+                  "plainly.")
+        else:
+            print(f"  Lift: {c['lift']}x — no meaningful difference.")
+    print()
+    print("  How this is computed: commits whose message reads like a fix are")
+    print("  traced with git blame to whatever last touched the lines they")
+    print("  changed. Correlation only. Busy files attract both fixes and")
+    print("  rushed commits, and a small sample moves this number a lot.")
+    print(f"  Treat under ~30 traced origins as a hint, not a finding "
+          f"(here: {c['origins_traced']}).")
+
+
+def report_people(rows, sessions):
+    by_author = defaultdict(Counter)
+    for r in rows:
+        by_author[r["author"]][r["verdict"]] += 1
+    sess_by_author = defaultdict(list)
+    for s in sessions:
+        sess_by_author[s["author"]].append(s)
+
+    section("BY AUTHOR")
+    print(f"  {'author':<28}{'graded':>8}{'problems':>10}{'rate':>7}"
+          f"{'sessions':>10}")
+    for author, counts in sorted(
+            by_author.items(), key=lambda kv: -sum(kv[1].values())):
+        graded = sum(n for v, n in counts.items() if v != "scaffold")
+        if not graded:
+            continue
+        probs = sum(counts[v] for v in PROBLEMS)
+        rate = probs / graded * 100
+        n_sessions = len(sess_by_author.get(author, []))
+        print(f"  {author[:27]:<28}{graded:>8}{probs:>10}{rate:>6.0f}%"
+              f"{n_sessions:>10}")
+    print()
+    print("  This measures commits, not people. Deadline pressure produces")
+    print("  problem commits far more reliably than carelessness does. Use it")
+    print("  to decide what to teach, never to rank anyone.")
+    return by_author
+
+
+def report_coaching(by_author):
+    printed = False
+    for author, counts in sorted(by_author.items()):
+        advice = rgcteam.coaching(counts)
+        if not advice:
+            continue
+        if not printed:
+            section("WHAT TO TEACH")
+            printed = True
+        print(f"  {author}")
+        for line in advice:
+            print(f"    - {line}")
+        print()
+    if not printed:
+        section("WHAT TO TEACH")
+        print("  Nothing stands out. Leave it alone.")
+
+
+def report_sessions(sessions):
+    if not sessions:
+        return
+    section("RECORDED SESSIONS")
+    by_author = defaultdict(lambda: Counter())
     for s in sessions:
         a = by_author[s["author"]]
         a["sessions"] += 1
-        a["red"] += s["red"]
-        a["green"] += s["green"]
-        a["move"] += s["move"]
-        a["waive"] += s["waive"]
         a["test_first"] += 1 if s["red"] else 0
+        a["waive"] += s["waive"]
+    for author, a in sorted(by_author.items()):
+        rate = a["test_first"] / a["sessions"] * 100
+        print(f"  {author[:33]:<34}{a['sessions']:>4} sessions"
+              f"{rate:>7.0f}% test-first{a['waive']:>5} waived")
+    print()
+    print("  Compare this with HISTORY above. If the recorded test-first rate")
+    print("  is high and the problem rate is also high, the records and the")
+    print("  commits disagree, and the commits are the ones to believe.")
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        prog="rgc-report", description="Team report over git history.")
+    ap.add_argument("--since", metavar="YYYY-MM-DD")
+    ap.add_argument("--path", metavar="DIR")
+    ap.add_argument("-n", "--limit", type=int, default=400)
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args()
+
+    root = repo_root()
+    limit = None if args.since else args.limit
+    rows = analyse(None, args.path, limit, args.since)
+    if not rows:
+        print("No commits in range.")
+        return 0
+    sessions = load_sessions(root, args.since)
 
     if args.json:
-        print(json.dumps({"sessions": sessions,
-                          "by_author": {k: dict(v)
-                                        for k, v in by_author.items()},
-                          "drift": drift}, indent=2))
-        return
+        print(json.dumps({
+            "counts": dict(Counter(r["verdict"] for r in rows)),
+            "trend": rgcteam.trend(rows),
+            "correlation": rgcteam.correlate(root, rows),
+            "sessions": sessions,
+        }, indent=2))
+        return 0
 
-    print(f"Sessions recorded: {len(sessions)}"
-          + (f"  since {args.since}" if args.since else ""))
-    if sessions:
-        print()
-        print(f"{'author':<34}{'sessions':>9}{'test-first':>12}"
-              f"{'moves':>8}{'waived':>8}")
-        for author, a in sorted(by_author.items()):
-            rate = a["test_first"] / a["sessions"] * 100 if a["sessions"] else 0
-            print(f"{author[:33]:<34}{a['sessions']:>9}"
-                  f"{rate:>11.0f}%{a['move']:>8}{a['waive']:>8}")
-        print()
-        print("test-first = sessions where a failing test was recorded before")
-        print("production code. It is a count of sessions, not of people.")
-    else:
-        print("No audit records yet. They appear once someone runs rgc-audit.")
-
-    if drift:
-        print()
-        print(f"Git history over the same window: "
-              f"{drift['problem_pct']:.0f}% problem commits "
-              f"({drift['problem_commits']} of {drift['gradeable']})")
-        print("Compare the two. A high test-first rate with a high problem")
-        print("rate means the records say one thing and the commits another.")
+    window = f"since {args.since}" if args.since else f"last {len(rows)} commits"
+    print(f"RED GREEN CLEAN — team report ({window})")
+    report_history(rows)
+    report_trend(rows)
+    report_correlation(root, rows)
+    by_author = report_people(rows, sessions)
+    report_sessions(sessions)
+    report_coaching(by_author)
+    print()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

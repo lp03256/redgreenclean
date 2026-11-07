@@ -28,9 +28,9 @@ RENAME_THRESHOLD = "30%"
 TRIVIAL_CHURN = 3
 
 
-def git(*args):
+def git(*args, repo=None):
     out = subprocess.run(
-        ["git", *args], capture_output=True, text=True, check=False
+        ["git", *args], cwd=repo, capture_output=True, text=True, check=False
     )
     if out.returncode != 0:
         sys.exit(f"git {' '.join(args)}: {out.stderr.strip()}")
@@ -45,7 +45,7 @@ def classify_path(path):
     return "prod"
 
 
-def read_commits(rev_range, subdir, limit, extra_since):
+def read_commits(rev_range, subdir, limit, extra_since, repo=None):
     sep = "\x1e"
     args = ["log", f"--format={sep}%H{sep}%an{sep}%aI{sep}%P{sep}%s",
             f"--find-renames={RENAME_THRESHOLD}", "--no-merges", "--numstat"]
@@ -57,7 +57,7 @@ def read_commits(rev_range, subdir, limit, extra_since):
         args.append(rev_range)
     if subdir:
         args += ["--", subdir]
-    return parse_log(git(*args), sep)
+    return parse_log(git(*args, repo=repo), sep)
 
 
 def resolve_rename(path):
@@ -100,9 +100,9 @@ def parse_log(raw, sep):
     return commits
 
 
-def git_quiet(*args):
-    out = subprocess.run(["git", *args], capture_output=True, text=True,
-                         check=False)
+def git_quiet(*args, repo=None):
+    out = subprocess.run(["git", *args], cwd=repo, capture_output=True,
+                         text=True, check=False)
     return out.stdout if out.returncode == 0 else None
 
 
@@ -126,9 +126,9 @@ def move_pairs(commit):
     return pairs
 
 
-def is_pure_move(sha, old, new):
-    before = git_quiet("show", f"{sha}^:{old}")
-    after = git_quiet("show", f"{sha}:{new}")
+def is_pure_move(sha, old, new, repo=None):
+    before = git_quiet("show", f"{sha}^:{old}", repo=repo)
+    after = git_quiet("show", f"{sha}:{new}", repo=repo)
     if before is None or after is None:
         return True
     squash = lambda s: "\n".join(
@@ -146,7 +146,7 @@ def churn(files, kind=None, exclude_renamed=False):
     )
 
 
-def classify(commit):
+def classify(commit, repo=None):
     if not commit["parents"]:
         return "scaffold", "root commit, nothing behind it to protect"
 
@@ -171,7 +171,7 @@ def classify(commit):
         )
 
     for old, new in move_pairs(commit):
-        if not is_pure_move(commit["sha"], old, new):
+        if not is_pure_move(commit["sha"], old, new, repo=repo):
             has_moves = True
             return "mixed", (
                 f"{old} moved to {new} and its contents changed in the "
@@ -220,10 +220,10 @@ def pair_red_and_green(rows):
     return rows
 
 
-def analyse(rev_range=None, subdir=None, limit=None, since=None):
-    commits = read_commits(rev_range, subdir, limit, since)
+def analyse(rev_range=None, subdir=None, limit=None, since=None, repo=None):
+    commits = read_commits(rev_range, subdir, limit, since, repo=repo)
     rows = []
     for c in commits:
-        verdict, why = classify(c)
+        verdict, why = classify(c, repo=repo)
         rows.append({**c, "verdict": verdict, "why": why})
     return pair_red_and_green(rows)
