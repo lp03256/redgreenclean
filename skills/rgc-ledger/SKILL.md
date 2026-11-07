@@ -1,5 +1,5 @@
 ---
-name: plumb-ledger
+name: rgc-ledger
 description: Show what was changed this session and in what order — tests written, moves applied, commits made. Use at the end of a work session, or when the user asks "what did you do", "summarise this session", "show the ledger".
 ---
 

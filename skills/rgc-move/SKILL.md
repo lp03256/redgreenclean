@@ -1,5 +1,5 @@
 ---
-name: plumb-move
+name: rgc-move
 description: Look up a named refactoring — when to use it, the steps, and what to watch for. Use when deciding how to restructure code, or when the user asks "what refactoring is this", "how do I extract", "is this a code smell".
 ---
 

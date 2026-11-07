@@ -1,5 +1,5 @@
 ---
-name: plumb-tidy
+name: rgc-tidy
 description: Structural change only — the code moves, the behaviour does not. Use when renaming, extracting, reordering, or cleaning up without changing what the program does.
 ---
 
@@ -13,7 +13,7 @@ Before you start, run the tests and note the result. After you finish, run them
 again. Same tests, same result, no test file edited.
 
 If you had to change a test, you changed behaviour. Stop, undo, and go to
-`plumb-rhythm` instead.
+`rgc-rhythm` instead.
 
 **If there are no tests covering what you are about to move**, say so to the
 user before touching anything. Two honest options:
@@ -58,7 +58,7 @@ calls.
 
 Changing a default value. Adding a null check. Widening or narrowing a type in
 a way that accepts different input. Changing the order of two calls that have
-side effects. Any of these can change behaviour. They belong in `plumb-rhythm`.
+side effects. Any of these can change behaviour. They belong in `rgc-rhythm`.
 
 ## Before each move
 

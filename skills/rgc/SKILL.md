@@ -1,9 +1,9 @@
 ---
-name: plumb
-description: Entry point for disciplined code change. Routes to the right mode — behaviour change, structural change, or move lookup. Use when starting any code change, or when the user says "plumb", "start clean", "do this properly", "test first".
+name: rgc
+description: Entry point for disciplined code change. Routes to the right mode — behaviour change, structural change, or move lookup. Use when starting any code change, or when the user says "rgc", "red green clean", "do this properly", "test first", "tdd this".
 ---
 
-# Plumb
+# Red Green Clean
 
 You are about to change code. Before you touch a file, decide which kind of
 change this is. The two kinds never share a commit.
@@ -14,10 +14,10 @@ Ask yourself first. Ask the user only if you genuinely cannot tell.
 
 **Does the program do something different when you are done?**
 
-- **Yes** → behaviour change → load `plumb-rhythm`
-- **No, code just moves around** → structural change → load `plumb-tidy`
+- **Yes** → behaviour change → load `rgc-rhythm`
+- **No, code just moves around** → structural change → load `rgc-tidy`
 - **Both** → do the structural part first, as its own commit, then the
-  behaviour part. Load `plumb-tidy`, finish it, then load `plumb-rhythm`.
+  behaviour part. Load `rgc-tidy`, finish it, then load `rgc-rhythm`.
 
 If you are unsure which it is, it is a behaviour change. Guessing "structural"
 when it is not is how untested behaviour gets shipped.

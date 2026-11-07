@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Symlink Plumb skills into ~/.claude/skills/. Touches nothing else.
+# Symlink Red Green Clean skills into ~/.claude/skills/. Touches nothing else.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/skills"
@@ -14,7 +14,7 @@ if [[ "${1:-}" == "--remove" ]]; then
       echo "removed  $name"
     fi
   done
-  echo "Plumb uninstalled."
+  echo "Red Green Clean uninstalled."
   exit 0
 fi
 
@@ -34,5 +34,5 @@ for skill in "$SRC"/*/; do
 done
 
 echo
-echo "Plumb installed to $DEST"
-echo "Start a new Claude Code session and run /plumb"
+echo "Red Green Clean installed to $DEST"
+echo "Start a new Claude Code session and run /rgc"

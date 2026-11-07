@@ -1,5 +1,5 @@
 ---
-name: plumb-rhythm
+name: rgc-rhythm
 description: The red-green-clean loop for a behaviour change. Write a failing test, make it pass with the least code, then tidy. Use when adding a feature, fixing a bug, or changing what the program does.
 ---
 
@@ -63,7 +63,7 @@ Run the tests after every single change, not at the end of a batch. The value
 of this step comes from the tight loop; if you make six changes and then run
 the tests, you have given up the thing that makes refactoring safe.
 
-Use named moves. Load `plumb-move` if you want the catalog. Say the name of the
+Use named moves. Load `rgc-move` if you want the catalog. Say the name of the
 move before you apply it.
 
 Stop when the code is clear, not when it is clever.
