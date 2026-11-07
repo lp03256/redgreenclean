@@ -1,3 +1,6 @@
 .DS_Store
-*.swp
+pro/
+*.pyc
+__pycache__/
 .rgc/
+*.swp
