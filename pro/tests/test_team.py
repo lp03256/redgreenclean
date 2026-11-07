@@ -66,6 +66,54 @@ class Coaching(unittest.TestCase):
     def test_coaching_givenCleanHistory_returnsNoAdvice(self):
         self.assertEqual(rgcteam.coaching({"green": 10, "red": 5}), [])
 
+    def test_coaching_givenTooFewCommitsToJudge_returnsNoAdvice(self):
+        self.assertEqual(rgcteam.coaching({"unprotected": 1}), [])
+        self.assertEqual(rgcteam.coaching({"unprotected": 3, "green": 2}), [])
+
+    def test_coaching_atTheMinimumSample_stillAdvises(self):
+        counts = {"unprotected": 8, "green": 2}
+        self.assertEqual(sum(counts.values()), rgcteam.MIN_GRADED)
+        self.assertTrue(rgcteam.coaching(counts))
+
+
+class AuthorIdentity(unittest.TestCase):
+    def test_canonicalAuthor_givenMappedAlias_returnsCanonicalName(self):
+        amap = {"avula.vijay": "Avula Vijay Kumar"}
+        self.assertEqual(
+            rgcteam.canonical_author("avula.vijay", amap), "Avula Vijay Kumar")
+
+    def test_canonicalAuthor_isCaseInsensitive(self):
+        amap = {"avula.vijay": "Avula Vijay Kumar"}
+        self.assertEqual(
+            rgcteam.canonical_author("Avula.Vijay", amap), "Avula Vijay Kumar")
+
+    def test_canonicalAuthor_givenUnmappedName_returnsItUnchanged(self):
+        self.assertEqual(rgcteam.canonical_author("Someone Else", {}),
+                         "Someone Else")
+
+    def test_loadAuthorMap_parsesAliasLinesAndIgnoresComments(self):
+        d = tempfile.mkdtemp(prefix="rgc-map-")
+        try:
+            os.makedirs(os.path.join(d, ".rgc"))
+            with open(os.path.join(d, ".rgc", "authors.map"), "w") as fh:
+                fh.write("# people with two git identities\n")
+                fh.write("lpatil = Lalit Patil\n")
+                fh.write("\n")
+                fh.write("sbhatkande = Sandeep Bhatkande\n")
+            amap = rgcteam.load_author_map(d)
+            self.assertEqual(amap["lpatil"], "Lalit Patil")
+            self.assertEqual(amap["sbhatkande"], "Sandeep Bhatkande")
+            self.assertEqual(len(amap), 2)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_loadAuthorMap_givenNoFile_returnsEmpty(self):
+        d = tempfile.mkdtemp(prefix="rgc-map-")
+        try:
+            self.assertEqual(rgcteam.load_author_map(d), {})
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
 
 class Correlation(unittest.TestCase):
     @classmethod
