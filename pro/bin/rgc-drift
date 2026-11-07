@@ -50,7 +50,7 @@ def classify_path(path):
 
 def read_commits(rev_range, subdir, limit, extra_since):
     sep = "\x1e"
-    args = ["log", f"--format={sep}%H{sep}%an{sep}%aI{sep}%s",
+    args = ["log", f"--format={sep}%H{sep}%an{sep}%aI{sep}%P{sep}%s",
             f"--find-renames={RENAME_THRESHOLD}", "--no-merges", "--numstat"]
     if limit:
         args.append(f"-n{limit}")
@@ -78,9 +78,10 @@ def parse_log(raw, sep):
     current = None
     for line in raw.split("\n"):
         if line.startswith(sep):
-            sha, author, date, subject = line[1:].split(sep, 3)
+            sha, author, date, parents, subject = line[1:].split(sep, 4)
             current = {"sha": sha, "author": author, "date": date,
-                       "subject": subject.strip(), "files": [], "renames": 0}
+                       "parents": parents.split(), "subject": subject.strip(),
+                       "files": [], "renames": 0}
             commits.append(current)
             continue
         if current is None or not line.strip():
@@ -149,6 +150,9 @@ def churn(files, kind=None, exclude_renamed=False):
 
 
 def classify(commit):
+    if not commit["parents"]:
+        return "scaffold", "root commit, nothing behind it to protect"
+
     files = commit["files"]
     prod = [f for f in files if f["kind"] == "prod"]
     tests = [f for f in files if f["kind"] == "test"]
@@ -210,6 +214,15 @@ VERDICTS = {
 PROBLEMS = {"mixed", "unprotected", "test-cut"}
 
 
+def pair_red_and_green(rows):
+    """A prod-only commit directly after a test-only commit is its green half."""
+    for newer, older in zip(rows, rows[1:]):
+        if newer["verdict"] == "unprotected" and older["verdict"] == "red":
+            newer["verdict"] = "green"
+            newer["why"] = "production code completing the preceding red commit"
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser(
         prog="rgc-drift",
@@ -244,13 +257,16 @@ def main():
         return 0
 
     rows = []
-    counts = Counter()
-    by_author = defaultdict(Counter)
     for c in commits:
         verdict, why = classify(c)
-        counts[verdict] += 1
-        by_author[c["author"]][verdict] += 1
         rows.append({**c, "verdict": verdict, "why": why})
+    pair_red_and_green(rows)
+
+    counts = Counter()
+    by_author = defaultdict(Counter)
+    for r in rows:
+        counts[r["verdict"]] += 1
+        by_author[r["author"]][r["verdict"]] += 1
 
     gradeable = sum(
         n for v, n in counts.items() if v not in ("scaffold",)
