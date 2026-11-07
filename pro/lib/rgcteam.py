@@ -1,5 +1,6 @@
 """Team-tier analysis: fix detection, defect correlation, trend, coaching."""
 
+import os
 import re
 import subprocess
 from collections import Counter, defaultdict
@@ -14,6 +15,8 @@ FIX_WORDS = re.compile(
 )
 
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? ")
+
+MIN_GRADED = 10
 OLD_FILE = re.compile(r"^--- (?:a/)?(.+)$")
 
 
@@ -40,9 +43,29 @@ def trend(rows):
     return out
 
 
+def load_author_map(root):
+    """Optional .rgc/authors.map of 'alias = Canonical Name' lines."""
+    path = os.path.join(root, ".rgc", "authors.map")
+    if not os.path.exists(path):
+        return {}
+    amap = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            alias, canonical = line.split("=", 1)
+            amap[alias.strip().lower()] = canonical.strip()
+    return amap
+
+
+def canonical_author(name, amap):
+    return amap.get((name or "").strip().lower(), name)
+
+
 def coaching(counts):
     graded = sum(n for v, n in counts.items() if v != "scaffold")
-    if not graded:
+    if graded < MIN_GRADED:
         return []
     share = lambda v: counts.get(v, 0) / graded
     advice = []

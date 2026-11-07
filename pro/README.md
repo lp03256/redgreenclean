@@ -52,9 +52,26 @@ both work.
 rgc-report --since 2026-01-01
 ```
 
-It answers one question honestly: on changes where a test was possible, how
-often did one get written first? It reports per-repo and per-author totals. It
-does not rank people, and you should not use it to.
+Five sections: history, trend by month, defect correlation, per-author view,
+and what to teach.
+
+**Defect correlation** is the one worth the licence. It finds commits that look
+like fixes, traces with `git blame` to whatever last touched the lines each fix
+changed, and compares those origin commits against the repo's base rate. When
+skipped discipline really does track with later fixes, this shows it in your
+own history rather than in someone else's study. When it does not, the report
+says so.
+
+Per-author figures need at least 10 graded commits in the window; smaller
+samples are suppressed. One person often commits under two git names — map the
+aliases in `.rgc/authors.map`:
+
+```
+lpatil = Lalit Patil
+sbhatkande = Sandeep Bhatkande
+```
+
+It does not rank people, and you should not use it to.
 
 ## Tests
 

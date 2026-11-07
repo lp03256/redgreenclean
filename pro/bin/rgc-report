@@ -124,28 +124,43 @@ def report_correlation(root, rows):
           f"(here: {c['origins_traced']}).")
 
 
-def report_people(rows, sessions):
+def report_people(rows, sessions, amap):
     by_author = defaultdict(Counter)
     for r in rows:
-        by_author[r["author"]][r["verdict"]] += 1
+        by_author[rgcteam.canonical_author(r["author"], amap)][r["verdict"]] += 1
     sess_by_author = defaultdict(list)
     for s in sessions:
-        sess_by_author[s["author"]].append(s)
+        sess_by_author[rgcteam.canonical_author(s["author"], amap)].append(s)
+
+    graded_of = lambda c: sum(n for v, n in c.items() if v != "scaffold")
+    shown = {a: c for a, c in by_author.items()
+             if graded_of(c) >= rgcteam.MIN_GRADED}
+    too_few = {a: c for a, c in by_author.items()
+               if 0 < graded_of(c) < rgcteam.MIN_GRADED}
 
     section("BY AUTHOR")
     print(f"  {'author':<28}{'graded':>8}{'problems':>10}{'rate':>7}"
           f"{'sessions':>10}")
-    for author, counts in sorted(
-            by_author.items(), key=lambda kv: -sum(kv[1].values())):
-        graded = sum(n for v, n in counts.items() if v != "scaffold")
-        if not graded:
-            continue
+    for author, counts in sorted(shown.items(),
+                                 key=lambda kv: -graded_of(kv[1])):
+        graded = graded_of(counts)
         probs = sum(counts[v] for v in PROBLEMS)
-        rate = probs / graded * 100
         n_sessions = len(sess_by_author.get(author, []))
-        print(f"  {author[:27]:<28}{graded:>8}{probs:>10}{rate:>6.0f}%"
-              f"{n_sessions:>10}")
+        print(f"  {author[:27]:<28}{graded:>8}{probs:>10}"
+              f"{probs / graded * 100:>6.0f}%{n_sessions:>10}")
+    if too_few:
+        print()
+        print(f"  {len(too_few)} author(s) had fewer than "
+              f"{rgcteam.MIN_GRADED} graded commits in this window and are not"
+              f"\n  shown. A rate from three commits is noise, and printing it"
+              f" next to\n  someone's name invites it to be read as a fact.")
+    if not shown:
+        print("  Nobody has enough commits in this window to show a rate.")
     print()
+    if len(shown) > 1:
+        print("  One person showing twice? Git identities differ. Map them in")
+        print("  .rgc/authors.map as 'alias = Canonical Name', one per line.")
+        print()
     print("  This measures commits, not people. Deadline pressure produces")
     print("  problem commits far more reliably than carelessness does. Use it")
     print("  to decide what to teach, never to rank anyone.")
@@ -206,6 +221,7 @@ def main():
         print("No commits in range.")
         return 0
     sessions = load_sessions(root, args.since)
+    amap = rgcteam.load_author_map(root)
 
     if args.json:
         print(json.dumps({
@@ -221,7 +237,7 @@ def main():
     report_history(rows)
     report_trend(rows)
     report_correlation(root, rows)
-    by_author = report_people(rows, sessions)
+    by_author = report_people(rows, sessions, amap)
     report_sessions(sessions)
     report_coaching(by_author)
     print()
