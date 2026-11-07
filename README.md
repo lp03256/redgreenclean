@@ -40,7 +40,7 @@ has to be one of the moves in the catalog, stated by name before it is applied.
 ## Install
 
 ```bash
-git clone https://github.com/YOURNAME/redgreenclean.git
+git clone https://github.com/lp03256/redgreenclean.git
 cd redgreenclean && ./install.sh
 ```
 
