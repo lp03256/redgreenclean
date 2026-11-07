@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Red Green Clean</title>
+<meta name="description" content="Claude Code skills that hold an AI coding agent to test-first discipline — and a tool that reads your git history to show where it slipped.">
+<meta property="og:title" content="Red Green Clean">
+<meta property="og:description" content="Your agent says it wrote the test first. Your git history says otherwise.">
+<meta property="og:type" content="website">
+<style>
+:root{
+  --bg:#fbfbf9; --fg:#1a1a18; --muted:#5c5c56; --line:#e2e1dc;
+  --card:#ffffff; --accent:#1f7a4d; --warn:#9a3412; --code:#f4f3ef;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#13130f; --fg:#eceae4; --muted:#9b998f; --line:#2b2a25;
+    --card:#1a1a16; --accent:#4ade80; --warn:#fb923c; --code:#1f1e1a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13130f; --fg:#eceae4; --muted:#9b998f; --line:#2b2a25;
+  --card:#1a1a16; --accent:#4ade80; --warn:#fb923c; --code:#1f1e1a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
+  line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+header{padding:72px 0 48px}
+.logo{font-family:var(--mono);font-size:13px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 28px}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.15;margin:0 0 18px;
+  letter-spacing:-.02em;font-weight:650}
+.lede{font-size:clamp(17px,2.4vw,20px);color:var(--muted);margin:0 0 32px;max-width:36em}
+h2{font-size:clamp(20px,3.4vw,25px);margin:56px 0 14px;letter-spacing:-.01em;font-weight:620}
+h3{font-size:16px;margin:28px 0 8px;font-weight:620}
+p{margin:0 0 16px}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+code{font-family:var(--mono);font-size:.9em;background:var(--code);
+  padding:2px 5px;border-radius:4px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;
+  padding:14px 16px;overflow-x:auto;margin:0 0 18px}
+pre code{background:none;padding:0;font-size:13px;line-height:1.6}
+.btn{display:inline-block;background:var(--fg);color:var(--bg);padding:11px 20px;
+  border-radius:7px;text-decoration:none;font-weight:600;font-size:15px}
+.btn.ghost{background:none;color:var(--fg);border:1px solid var(--line)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.note{color:var(--muted);font-size:14px}
+.term{border-left:3px solid var(--line);padding:2px 0 2px 14px;margin:0 0 18px}
+.term b{font-family:var(--mono);font-size:13px;font-weight:600}
+.term.bad{border-left-color:var(--warn)}
+.term.bad b{color:var(--warn)}
+.cards{display:grid;gap:14px;grid-template-columns:1fr;margin:24px 0}
+@media(min-width:640px){.cards{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+.card h3{margin:0 0 4px}
+.price{font-size:26px;font-weight:650;margin:0 0 2px;letter-spacing:-.02em}
+.price small{font-size:13px;font-weight:400;color:var(--muted)}
+.card ul{margin:12px 0 0;padding-left:18px;font-size:14px;color:var(--muted)}
+.card li{margin-bottom:5px}
+.card.feature{border-color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:0 0 18px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:13px}
+footer{margin:72px 0 48px;padding-top:24px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:14px}
+details{border-bottom:1px solid var(--line);padding:12px 0}
+summary{cursor:pointer;font-weight:600;font-size:15px}
+details p{margin:10px 0 0;color:var(--muted);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="logo">Red Green Clean</p>
+  <h1>Your agent says it wrote the test first.<br>Your git history says otherwise.</h1>
+  <p class="lede">A small set of Claude Code skills that hold an AI coding agent
+  to test-first discipline — and a tool that reads any repository and shows you
+  where that discipline actually slipped.</p>
+  <div class="btns">
+    <a class="btn" href="https://github.com/lp03256/redgreenclean">Get the free core</a>
+    <a class="btn ghost" href="#pro">See Pro</a>
+  </div>
+  <p class="note">Free core is MIT. Pro is a one-time licence.</p>
+</header>
+
+<h2>The problem</h2>
+<p>Coding agents are fast and agreeable. Left alone they write the production
+code before the test, fold a rename into a bug fix, and report that it all went
+well.</p>
+<p>None of that shows up in review, because <strong>the diff looks fine.</strong>
+What is missing is the order things happened in — and a diff cannot show you
+order.</p>
+
+<h2>The idea, in one table</h2>
+<p>Two kinds of change exist, and they must never share a commit.</p>
+<table>
+  <tr><th>Kind</th><th>What it does</th><th>How you check it</th></tr>
+  <tr><td><strong>Structural</strong></td><td>Moves code around. Renames, extracts, reorders.</td><td>Tests pass before and after, unchanged.</td></tr>
+  <tr><td><strong>Behavioural</strong></td><td>Changes what the program does.</td><td>A test that failed now passes.</td></tr>
+</table>
+<p>Mixing them is what makes a diff unreviewable. A reviewer cannot tell whether
+the 200 moved lines are the same 200 lines, so they skim — and the one changed
+line goes through. Separating them is the whole trick, and it is
+<a href="https://www.oreilly.com/library/view/tidy-first/9781098151232/">Kent Beck's</a>,
+not ours.</p>
+
+<h2>Free core</h2>
+<pre><code>git clone https://github.com/lp03256/redgreenclean.git
+cd redgreenclean &amp;&amp; ./install.sh</code></pre>
+<table>
+  <tr><td><code>/rgc</code></td><td>Routes: is this behavioural or structural?</td></tr>
+  <tr><td><code>/rgc-rhythm</code></td><td>Red → green → clean, one commit each</td></tr>
+  <tr><td><code>/rgc-tidy</code></td><td>Structural change only, no behaviour</td></tr>
+  <tr><td><code>/rgc-move</code></td><td>Named refactoring catalog and mechanics</td></tr>
+  <tr><td><code>/rgc-ledger</code></td><td>What happened this session, in order</td></tr>
+</table>
+<p class="note">Complete and standalone. Not a crippled trial.</p>
+
+<h2 id="pro">Pro</h2>
+<p>The free core is advice the agent reads. Pro checks whether the advice was
+followed, and helps in the two places the free core leaves you stuck.</p>
+
+<h3>Point it at a repo you already have</h3>
+<pre><code>$ rgc-drift --since origin/main
+
+! UNPROTECT  a1b2c3d4  add retry to payment client
+              -&gt; 84 lines of production code changed, no test touched
+! MIXED      e5f6g7h8  refactor and fix rounding
+              -&gt; OrderValidator.java moved to Validator.java
+                 and its contents changed in the same commit
+
+  RED      13   GREEN  99   STRUCTURAL  10
+  MIXED     5   UNPROTECT 42   TEST-CUT 20
+
+Problem rate: 35%  (67 of 189)</code></pre>
+<p>It works on repositories that never used this tool, which is what makes it
+useful on day one. Ten seconds, no setup, and it will tell you something true.</p>
+
+<div class="term"><b>RED</b> — a test written before the code.</div>
+<div class="term"><b>GREEN</b> — production and test changed together.</div>
+<div class="term"><b>STRUCTURAL</b> — code moved, behaviour unchanged.</div>
+<div class="term bad"><b>UNPROTECT</b> — behaviour changed, no test in the commit.</div>
+<div class="term bad"><b>MIXED</b> — code moved <em>and</em> changed at once. Unreviewable.</div>
+<div class="term bad"><b>TEST-CUT</b> — tests shrank while production code changed.</div>
+
+<h3>And three more skills</h3>
+<table>
+  <tr><td><code>/rgc-weigh</code></td><td>Grades a change light, standard or heavy — so a typo fix does not get the full ceremony and a payments change does not get skipped</td></tr>
+  <tr><td><code>/rgc-net</code></td><td>Builds characterisation tests around code that has none, so you can change it safely</td></tr>
+  <tr><td><code>/rgc-audit</code></td><td>Records the steps as they happen, not as a story told afterwards</td></tr>
+</table>
+
+<h2>Pricing</h2>
+<div class="cards">
+  <div class="card">
+    <h3>Core</h3>
+    <p class="price">Free</p>
+    <p class="note">MIT licence</p>
+    <ul><li>Five skills</li><li>Move catalog</li><li>Yours forever</li></ul>
+  </div>
+  <div class="card feature">
+    <h3>Pro</h3>
+    <p class="price">$99 <small>once</small></p>
+    <p class="note">One developer</p>
+    <ul>
+      <li>Everything in Core</li>
+      <li><code>rgc-drift</code> history analysis</li>
+      <li>weigh, net, audit skills</li>
+      <li>12 months of updates</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Team</h3>
+    <p class="price">$399 <small>once</small></p>
+    <p class="note">Up to 10 developers</p>
+    <ul>
+      <li>Everything in Pro</li>
+      <li>Trend over time</li>
+      <li>Defect correlation</li>
+      <li>Per-author view</li>
+    </ul>
+  </div>
+</div>
+<div class="btns">
+  <a class="btn" href="CHECKOUT_URL_PRO">Buy Pro — $99</a>
+  <a class="btn ghost" href="CHECKOUT_URL_TEAM">Buy Team — $399</a>
+</div>
+<p class="note">One-time purchase. It keeps working after the update period
+ends. Full refund within 30 days, no reason needed.</p>
+
+<h2>Questions</h2>
+<details><summary>Does this only work with Claude Code?</summary>
+<p>The skills are written for Claude Code. The command-line tools —
+<code>rgc-drift</code>, <code>rgc-audit</code>, <code>rgc-report</code> — are
+plain Python and git, and work anywhere, with or without an agent.</p></details>
+
+<details><summary>What does it need installed?</summary>
+<p>Python 3 and git. Nothing else — no packages, no services, no account.</p></details>
+
+<details><summary>Does my code leave my machine?</summary>
+<p>No. Everything runs locally against your own git history. There is no
+server, no telemetry, and no network call.</p></details>
+
+<details><summary>Will it prove that skipping tests causes defects?</summary>
+<p>It will tell you whether that is true <em>in your repository</em>, which is
+a different and more useful thing. The Team report traces fix commits back to
+whatever introduced the lines they changed, then compares. Sometimes the link
+is strong. Sometimes there is no link at all, and the report says so plainly
+rather than explaining it away.</p></details>
+
+<details><summary>Can I use it on client work?</summary>
+<p>Yes. Both licences permit commercial use. You may not redistribute or
+resell Pro itself.</p></details>
+
+<details><summary>What if it is not useful?</summary>
+<p>Reply to your receipt within 30 days and you get a full refund. No
+questions.</p></details>
+
+<footer>
+  <p><a href="https://github.com/lp03256/redgreenclean">GitHub</a> ·
+     <a href="mailto:CONTACT_EMAIL">Contact</a></p>
+  <p>Built on methods from Kent Beck's <em>Test-Driven Development by Example</em>
+     and <em>Tidy First?</em>, Martin Fowler's <em>Refactoring</em>, and
+     Robert C. Martin's <em>Clean Code</em>.</p>
+</footer>
+
+</div>
+</body>
+</html>
