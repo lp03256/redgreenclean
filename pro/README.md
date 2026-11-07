@@ -56,6 +56,16 @@ It answers one question honestly: on changes where a test was possible, how
 often did one get written first? It reports per-repo and per-author totals. It
 does not rank people, and you should not use it to.
 
+## Tests
+
+```bash
+python3 pro/tests/test_drift.py
+```
+
+Builds throwaway git repositories with one planted commit per verdict and
+checks `rgc-drift` grades each correctly. No dependencies beyond the standard
+library and `git`.
+
 ## Licence
 
 See LICENSE-PRO. This directory is not MIT.

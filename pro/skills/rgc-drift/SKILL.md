@@ -29,6 +29,13 @@ rgc-drift --fail-over 30         # exit 1 if over 30% problem commits
 | `UNPROTECT` | Production code changed with no test touched. |
 | `TEST-CUT` | Tests shrank while production code changed. |
 
+A commit with no parent is graded `SCAFFOLD`. There was nothing behind it to
+protect, so grading it tells you nothing about discipline.
+
+A production-only commit directly after a test-only commit is graded `GREEN`,
+not `UNPROTECT`. Splitting red and green across two commits is correct
+practice, and the tool must not punish it.
+
 The last three are the problems. Of those, `UNPROTECT` and `MIXED` matter most:
 the first is behaviour nobody pinned down, the second is a diff nobody can
 actually review.
@@ -76,6 +83,9 @@ The tool reads file paths and line counts. It cannot read intent.
   quality of a test.
 - Squash-merge histories compress many steps into one commit and will read
   worse than the work actually was. Say so if the repo squashes.
+- Red/green pairing only works when both commits are inside the range you
+  asked for. A `--since` that starts between them will show the green half as
+  `UNPROTECT`. Widen the range before believing a sudden jump.
 
 Report the number with its limits attached. A precise-looking percentage
 presented without them will be believed more than it deserves.
