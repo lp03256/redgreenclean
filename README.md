@@ -47,6 +47,10 @@ cd redgreenclean && ./install.sh
 This symlinks the skills into `~/.claude/skills/`. Nothing else is touched.
 Uninstall with `./install.sh --remove`.
 
+If you have bought Pro, clone it into `pro/` inside this directory and run
+`./install.sh --pro`. The two are separate repositories; this one is MIT and
+Pro is not.
+
 ## Use
 
 | Command | What it does |
